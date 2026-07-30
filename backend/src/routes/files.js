@@ -1,88 +1,115 @@
-const express = require("express");
-const multer = require("multer");
-const {
-  getAllFiles,
-  addFile,
-  getFileById,
-  deleteFileById,
-  renameFileById,
-  searchFiles
-} = require("../services/fileService");
+const express = require('express');
+const multer = require('multer');
+const { Readable } = require('stream');
+const fileService = require('../services/fileService');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer();
 
-router.get("/", (req, res) => {
-  const files = getAllFiles();
-  res.json({ files });
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+
+    const file = await fileService.createFileRecord({ file: req.file });
+    return res.status(201).json(file);
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Upload failed',
+      error: error.message,
+    });
+  }
 });
 
-router.get("/search", (req, res) => {
-  const q = (req.query.q || "").trim();
 
-  if (!q) {
-    return res.status(400).json({ message: "Query parameter q is required" });
+router.get('/', async (_req, res) => {
+  try {
+    const files = await fileService.listFiles();
+    return res.json(files);
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to list files' });
   }
-
-  const results = searchFiles(q);
-  res.json({ files: results });
 });
 
-router.get("/:id", (req, res) => {
-  const file = getFileById(req.params.id);
+router.get('/:id', async (req, res) => {
+  try {
+    const file = await fileService.getFileById(req.params.id);
 
-  if (!file) {
-    return res.status(404).json({ message: "File not found" });
+    if (!file) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    return res.json(file);
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to get file info' });
   }
-
-  res.json({ file });
 });
 
-router.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
+const { getObjectStream } = require('../services/s3Service');
+
+router.get('/:id/download', async (req, res) => {
+  try {
+    const file = await fileService.getFileById(req.params.id);
+
+    if (!file) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    const bodyStream = await getObjectStream(file.s3Key);
+
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.originalName)}"`
+    );
+
+    bodyStream.pipe(res);
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Download failed',
+      error: error.message,
+    });
   }
-
-  const storedName = `${Date.now()}-${req.file.originalname}`;
-
-  const newFile = addFile({
-    originalName: req.file.originalname,
-    storedName,
-    s3Key: `uploads/${storedName}`,
-    size: req.file.size,
-    mimeType: req.file.mimetype
-  });
-
-  res.status(201).json({
-    message: "File metadata saved successfully",
-    file: newFile
-  });
 });
 
-router.delete("/:id", (req, res) => {
-  const removed = deleteFileById(req.params.id);
+router.delete('/:id', async (req, res) => {
+  try {
+    const removed = await fileService.removeFile(req.params.id);
 
-  if (!removed) {
-    return res.status(404).json({ message: "File not found" });
+    if (!removed) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    return res.json({ message: 'File deleted', file: removed });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Delete failed',
+      error: error.message,
+    });
   }
-
-  res.json({ message: "File deleted", file: removed });
 });
 
-router.patch("/:id/rename", express.json(), (req, res) => {
-  const { newName } = req.body;
+router.patch('/:id/rename', async (req, res) => {
+  try {
+    const { newName } = req.body;
 
-  if (!newName || !newName.trim()) {
-    return res.status(400).json({ message: "newName is required" });
+    if (!newName || typeof newName !== 'string') {
+      return res.status(400).json({ message: 'newName is required' });
+    }
+
+    const updated = await fileService.renameFile(req.params.id, newName);
+
+    if (!updated) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    return res.json(updated);
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Rename failed',
+      error: error.message,
+    });
   }
-
-  const updated = renameFileById(req.params.id, newName.trim());
-
-  if (!updated) {
-    return res.status(404).json({ message: "File not found" });
-  }
-
-  res.json({ message: "File renamed", file: updated });
 });
 
-module.exports = router;

@@ -1,21 +1,22 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs/promises');
+const path = require('path');
 
-function readJSON(filePath) {
-  if (!fs.existsSync(filePath)) {
+const dataFile = process.env.DATA_FILE || path.join(__dirname, '../data/files.json');
+
+async function readStore() {
+  try {
+    const raw = await fs.readFile(dataFile, 'utf-8');
+    return JSON.parse(raw);
+  } catch (error) {
     return { files: [] };
   }
-
-  const raw = fs.readFileSync(filePath, "utf-8");
-  if (!raw.trim()) return { files: [] };
-
-  return JSON.parse(raw);
 }
 
-function writeJSON(filePath, data) {
-  const tempPath = `${filePath}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
-  fs.renameSync(tempPath, filePath);
+async function writeStore(data) {
+  await fs.writeFile(dataFile, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-module.exports = { readJSON, writeJSON };
+module.exports = {
+  readStore,
+  writeStore,
+};

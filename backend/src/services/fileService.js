@@ -1,81 +1,112 @@
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const { readJSON, writeJSON } = require("../utils/jsonStore");
+const fs = require('fs/promises');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const {
+  uploadBuffer,
+  deleteObject,
+  renameObject,
+  buildS3Key,
+} = require('./s3Service');
+const { readStore, writeStore } = require('../utils/jsonStore');
 
-const DATA_FILE = path.join(__dirname, "..", "data", "files.json");
-
-function getAllFiles() {
-  const data = readJSON(DATA_FILE);
-  return data.files || [];
+function makeStoredName(id, originalName) {
+  return `${id}-${originalName}`;
 }
 
-function saveAllFiles(files) {
-  writeJSON(DATA_FILE, { files });
+async function listFiles() {
+  const store = await readStore();
+  return store.files;
 }
 
-function addFile(fileData) {
-  const files = getAllFiles();
+async function getFileById(id) {
+  const store = await readStore();
+  return store.files.find((file) => file.id === id) || null;
+}
+
+async function createFileRecord({ file }) {
+  const id = uuidv4().slice(0, 6);
+  const storedName = makeStoredName(id, file.originalname);
+  const s3Key = buildS3Key(storedName);
+
+  await uploadBuffer({
+    storedName,
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+  });
 
   const newFile = {
-    id: uuidv4(),
-    originalName: fileData.originalName,
-    storedName: fileData.storedName,
-    s3Key: fileData.s3Key,
-    size: fileData.size || 0,
-    mimeType: fileData.mimeType || "application/octet-stream",
+    id,
+    originalName: file.originalname,
+    storedName,
+    s3Key,
+    size: file.size,
+    mimeType: file.mimetype,
     uploadedAt: new Date().toISOString(),
   };
 
-  files.push(newFile);
-  saveAllFiles(files);
+  const store = await readStore();
+  store.files.push(newFile);
+  await writeStore(store);
+
   return newFile;
 }
 
-function getFileById(id) {
-  const files = getAllFiles();
-  return files.find((file) => file.id === id);
-}
-
-function deleteFileById(id) {
-  const files = getAllFiles();
-  const index = files.findIndex((file) => file.id === id);
+async function removeFile(id) {
+  const store = await readStore();
+  const index = store.files.findIndex((file) => file.id === id);
 
   if (index === -1) return null;
 
-  const removed = files.splice(index, 1)[0];
-  saveAllFiles(files);
-  return removed;
-}
+  const file = store.files[index];
+  await deleteObject(file.s3Key);
 
-function renameFileById(id, newName) {
-  const files = getAllFiles();
-  const file = files.find((item) => item.id === id);
+  store.files.splice(index, 1);
+  await writeStore(store);
 
-  if (!file) return null;
-
-  file.originalName = newName;
-  file.updatedAt = new Date().toISOString();
-
-  saveAllFiles(files);
   return file;
 }
 
-function searchFiles(query) {
-  const files = getAllFiles();
-  const q = query.toLowerCase();
+async function renameFile(id, newOriginalName) {
+  const store = await readStore();
+  const file = store.files.find((item) => item.id === id);
 
-  return files.filter(
-    (file) =>
+  if (!file) return null;
+
+  const newStoredName = makeStoredName(id, newOriginalName);
+  const newS3Key = buildS3Key(newStoredName);
+
+  await renameObject({
+    oldKey: file.s3Key,
+    newKey: newS3Key,
+  });
+
+  file.originalName = newOriginalName;
+  file.storedName = newStoredName;
+  file.s3Key = newS3Key;
+
+  await writeStore(store);
+
+  return file;
+}
+
+async function searchFiles(query) {
+  const store = await readStore();
+  const q = (query || '').toLowerCase();
+
+  return store.files.filter((file) => {
+    return (
       file.originalName.toLowerCase().includes(q) ||
-      file.storedName.toLowerCase().includes(q),
-  );
+      file.storedName.toLowerCase().includes(q) ||
+      file.mimeType.toLowerCase().includes(q)
+    );
+  });
 }
 
 module.exports = {
-  getAllFiles,
-  addFile,
+  listFiles,
   getFileById,
-  deleteFileById,
-  renameFileById,
+  createFileRecord,
+  removeFile,
+  renameFile,
   searchFiles,
 };
