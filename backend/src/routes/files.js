@@ -113,3 +113,4 @@ router.patch('/:id/rename', async (req, res) => {
   }
 });
 
+module.exports = router;
