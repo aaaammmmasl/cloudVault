@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const filesRouter = require("./routes/files");
+const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
 
@@ -16,5 +17,7 @@ app.use("/files", filesRouter);
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
+
+app.use(errorHandler);
 
 module.exports = app;
