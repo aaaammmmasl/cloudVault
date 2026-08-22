@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import FileList from "./components/FileList";
+import FileUpload from "./components/FileUpload";
+
 import {
   getFiles,
   getDownloadUrl,
@@ -15,7 +17,9 @@ function App() {
   async function loadFiles() {
     try {
       setError("");
+
       const data = await getFiles();
+
       setFiles(data);
     } catch (err) {
       setError(err.message);
@@ -44,11 +48,17 @@ function App() {
 
     try {
       setError("");
-      const updatedFile = await renameFile(file.id, newName);
+
+      const updatedFile = await renameFile(
+        file.id,
+        newName,
+      );
 
       setFiles((currentFiles) =>
         currentFiles.map((item) =>
-          item.id === updatedFile.id ? updatedFile : item,
+          item.id === updatedFile.id
+            ? updatedFile
+            : item,
         ),
       );
     } catch (err) {
@@ -67,14 +77,24 @@ function App() {
 
     try {
       setError("");
+
       await deleteFile(file.id);
 
       setFiles((currentFiles) =>
-        currentFiles.filter((item) => item.id !== file.id),
+        currentFiles.filter(
+          (item) => item.id !== file.id,
+        ),
       );
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  function handleUploadSuccess(uploadedFile) {
+    setFiles((currentFiles) => [
+      ...currentFiles,
+      uploadedFile,
+    ]);
   }
 
   if (loading) {
@@ -86,6 +106,10 @@ function App() {
       <h1>CloudVault</h1>
 
       {error && <p>{error}</p>}
+
+      <FileUpload
+        onUploadSuccess={handleUploadSuccess}
+      />
 
       <FileList
         files={files}
