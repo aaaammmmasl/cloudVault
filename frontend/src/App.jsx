@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import FileList from "./components/FileList";
 import FileUpload from "./components/FileUpload";
+import FileSearch from "./components/FileSearch";
 
 import {
   getFiles,
   getDownloadUrl,
+  searchFiles,
   renameFile,
   deleteFile,
 } from "./services/fileApi";
@@ -36,6 +38,18 @@ function App() {
     window.location.href = getDownloadUrl(file.id);
   }
 
+  async function handleSearch(query) {
+    try {
+      setError("");
+
+      const data = await searchFiles(query);
+
+      setFiles(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleRename(file) {
     const newName = window.prompt(
       "Enter the new file name:",
@@ -49,16 +63,11 @@ function App() {
     try {
       setError("");
 
-      const updatedFile = await renameFile(
-        file.id,
-        newName,
-      );
+      const updatedFile = await renameFile(file.id, newName);
 
       setFiles((currentFiles) =>
         currentFiles.map((item) =>
-          item.id === updatedFile.id
-            ? updatedFile
-            : item,
+          item.id === updatedFile.id ? updatedFile : item,
         ),
       );
     } catch (err) {
@@ -67,9 +76,7 @@ function App() {
   }
 
   async function handleDelete(file) {
-    const confirmed = window.confirm(
-      `Delete "${file.originalName}"?`,
-    );
+    const confirmed = window.confirm(`Delete "${file.originalName}"?`);
 
     if (!confirmed) {
       return;
@@ -81,9 +88,7 @@ function App() {
       await deleteFile(file.id);
 
       setFiles((currentFiles) =>
-        currentFiles.filter(
-          (item) => item.id !== file.id,
-        ),
+        currentFiles.filter((item) => item.id !== file.id),
       );
     } catch (err) {
       setError(err.message);
@@ -91,10 +96,7 @@ function App() {
   }
 
   function handleUploadSuccess(uploadedFile) {
-    setFiles((currentFiles) => [
-      ...currentFiles,
-      uploadedFile,
-    ]);
+    setFiles((currentFiles) => [...currentFiles, uploadedFile]);
   }
 
   if (loading) {
@@ -107,9 +109,9 @@ function App() {
 
       {error && <p>{error}</p>}
 
-      <FileUpload
-        onUploadSuccess={handleUploadSuccess}
-      />
+      <FileSearch onSearch={handleSearch} />
+
+      <FileUpload onUploadSuccess={handleUploadSuccess} />
 
       <FileList
         files={files}

@@ -1,6 +1,5 @@
 const express = require("express");
 const multer = require("multer");
-const { Readable } = require("stream");
 const fileService = require("../services/fileService");
 
 const router = express.Router();
