@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:3000/files";
+const API_BASE_URL = "/files";
 
 export async function getFiles() {
   const response = await fetch(API_BASE_URL);
