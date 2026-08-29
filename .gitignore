@@ -51,22 +51,6 @@ vite.config.ts.timestamp-*
 *.tsbuildinfo
 
 # ==========================================================
-# Terraform
-# ==========================================================
-.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-crash.*.log
-terraform.tfvars
-terraform.tfvars.json
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraform.lock.hcl
-
-# ==========================================================
 # Docker
 # ==========================================================
 docker-data/
@@ -112,3 +96,19 @@ Thumbs.db
 # Misc
 # ==========================================================
 .cache/
+
+
+# ==========================================================
+# Terraform
+# ==========================================================
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/crash.*.log
+terraform/*.tfvars
+terraform/*.tfvars.json
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
