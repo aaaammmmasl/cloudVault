@@ -50,3 +50,13 @@ resource "aws_iam_role_policy_attachment" "cloudvault_s3" {
   role       = aws_iam_role.cloudvault_ec2.name
   policy_arn = aws_iam_policy.cloudvault_s3.arn
 }
+
+resource "aws_iam_instance_profile" "cloudvault" {
+  name = "CloudVault-EC2-Instance-Profile"
+  role = aws_iam_role.cloudvault_ec2.name
+}
+
+resource "aws_iam_role_policy_attachment" "cloudvault_ssm" {
+  role       = aws_iam_role.cloudvault_ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
