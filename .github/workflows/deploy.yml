@@ -28,7 +28,7 @@ jobs:
             --instance-ids i-034f9bf3b00f1931a \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
-              "set -e; cd /opt/cloudvault/cloudVault; git pull origin main; sudo docker compose -f docker-compose.prod.yml up -d --build"
+              "set -e; cd /opt/cloudvault/cloudVault; sudo git pull origin main; sudo docker compose -f docker-compose.prod.yml up -d --build"
             ]' \
             --query "Command.CommandId" \
             --output text)
