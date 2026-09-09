@@ -120,7 +120,7 @@ function App() {
             </h1>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Internal file management
+              Internal File Management
             </p>
           </div>
 
