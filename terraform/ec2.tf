@@ -1,26 +1,5 @@
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-
-  owners = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-
-  filter {
-    name   = "root-device-type"
-    values = ["ebs"]
-  }
-}
-
 resource "aws_instance" "cloudvault" {
-  ami           = data.aws_ami.amazon_linux.id
+  ami           = "ami-01d5faff4584de9de"
   instance_type = "t3.micro"
 
   subnet_id                   = aws_subnet.public.id
@@ -33,4 +12,35 @@ resource "aws_instance" "cloudvault" {
     Name    = "CloudVault-EC2"
     Project = "CloudVault"
   }
+}
+
+resource "aws_ssm_association" "cloudwatch_agent" {
+  name = "AWS-RunShellScript"
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.cloudvault.id]
+  }
+
+  parameters = {
+    commands = <<-EOT
+      set -e
+
+      dnf install -y amazon-cloudwatch-agent
+
+      cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
+${file("${path.module}/cloudwatch-agent-config.json")}
+EOF
+
+      /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+        -a fetch-config \
+        -m ec2 \
+        -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+        -s
+    EOT
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.cloudvault_cloudwatch_agent
+  ]
 }
